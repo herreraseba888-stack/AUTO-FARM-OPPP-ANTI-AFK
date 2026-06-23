@@ -1,1 +1,570 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local ownerId = 10956859577
 
+-- Solo se muestra el GUI principal si es dueño o tras contraseña correcta
+local function showMainGUI()
+	local farming = false
+	local minimized = false
+	local savedCoords = Vector3.new(0,0,0)
+	local root, char
+	local tempX, tempY, tempZ = 0, 0, 0
+
+	-- Character hook
+	local function hookChar(c)
+		char = c
+		root = c:WaitForChild("HumanoidRootPart")
+	end
+	if player.Character then hookChar(player.Character) end
+	player.CharacterAdded:Connect(hookChar)
+
+	-- ==================== ANTI-AFK INDETECTABLE ====================
+	task.spawn(function()
+		while true do
+			task.wait(120) -- cada 2 minutos
+			if not root or not char then continue end
+			if farming then continue end -- no interfiere durante el farmeo
+			-- Giro microscópico (0.01 grados) para reiniciar el contador AFK
+			local originalCF = root.CFrame
+			local targetCF = originalCF * CFrame.Angles(0, math.rad(0.01), 0)
+			local tweenInfo = TweenInfo.new(0.1)
+			local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCF})
+			tween:Play()
+			tween.Completed:Wait()
+			tween = TweenService:Create(root, tweenInfo, {CFrame = originalCF})
+			tween:Play()
+		end
+	end)
+
+	-- GUI Principal
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AUTO_FARM"
+	gui.ResetOnSpawn = false
+	gui.Parent = game.CoreGui
+
+	local main = Instance.new("Frame", gui)
+	main.Size = UDim2.new(0, 260, 0, 360)
+	main.Position = UDim2.new(0.5, -130, 0.3, 0)
+	main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	main.BorderSizePixel = 0
+	main.Active = true
+	main.Draggable = true
+
+	local stroke = Instance.new("UIStroke", main)
+	stroke.Color = Color3.fromRGB(200, 0, 0)
+	stroke.Thickness = 2
+
+	-- Top Bar
+	local top = Instance.new("Frame", main)
+	top.Size = UDim2.new(1, 0, 0, 40)
+	top.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+	local title = Instance.new("TextLabel", top)
+	title.Size = UDim2.new(0, 130, 1, 0)
+	title.Position = UDim2.new(0, 10, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "AUTO FARM"
+	title.TextColor3 = Color3.fromRGB(255, 60, 60)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 20
+	title.TextXAlignment = Enum.TextXAlignment.Left
+
+	local minimizeBtn = Instance.new("TextButton", top)
+	minimizeBtn.Size = UDim2.new(0, 40, 0, 40)
+	minimizeBtn.Position = UDim2.new(0, 140, 0, 0)
+	minimizeBtn.BackgroundTransparency = 1
+	minimizeBtn.Text = "▼"
+	minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minimizeBtn.Font = Enum.Font.GothamBold
+	minimizeBtn.TextSize = 26
+
+	local ver = Instance.new("TextLabel", top)
+	ver.Size = UDim2.new(0, 50, 1, 0)
+	ver.Position = UDim2.new(1, -55, 0, 0)
+	ver.BackgroundTransparency = 1
+	ver.Text = "V4.0"
+	ver.TextColor3 = Color3.fromRGB(180, 180, 180)
+	ver.Font = Enum.Font.Gotham
+	ver.TextSize = 14
+
+	local tipsBtn = Instance.new("TextButton", main)
+	tipsBtn.Size = UDim2.new(0, 28, 0, 28)
+	tipsBtn.Position = UDim2.new(1, -36, 0, 6)
+	tipsBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+	tipsBtn.Text = "📝"
+	tipsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tipsBtn.Font = Enum.Font.GothamBold
+	tipsBtn.TextSize = 18
+	tipsBtn.BorderSizePixel = 0
+
+	-- Content
+	local content = Instance.new("Frame", main)
+	content.Size = UDim2.new(1, 0, 1, -40)
+	content.Position = UDim2.new(0, 0, 0, 40)
+	content.BackgroundTransparency = 1
+
+	-- Live
+	local liveFrame = Instance.new("Frame", content)
+	liveFrame.Size = UDim2.new(1, -20, 0, 80)
+	liveFrame.Position = UDim2.new(0, 10, 0, 10)
+	liveFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+	local liveTitle = Instance.new("TextLabel", liveFrame)
+	liveTitle.Size = UDim2.new(1, 0, 0, 25)
+	liveTitle.BackgroundTransparency = 1
+	liveTitle.Text = "COORDENADAS EN VIVO"
+	liveTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+	liveTitle.Font = Enum.Font.GothamBold
+	liveTitle.TextSize = 14
+	liveTitle.Position = UDim2.new(0, 10, 0, 5)
+
+	local live = Instance.new("TextLabel", liveFrame)
+	live.Size = UDim2.new(1, -20, 0, 45)
+	live.Position = UDim2.new(0, 10, 0, 30)
+	live.BackgroundTransparency = 1
+	live.TextColor3 = Color3.fromRGB(100, 255, 100)
+	live.Font = Enum.Font.Gotham
+	live.TextSize = 13
+	live.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Saved
+	local savedFrame = Instance.new("Frame", content)
+	savedFrame.Size = UDim2.new(1, -20, 0, 90)
+	savedFrame.Position = UDim2.new(0, 10, 0, 100)
+	savedFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+	local savedTitle = Instance.new("TextLabel", savedFrame)
+	savedTitle.Size = UDim2.new(1, 0, 0, 25)
+	savedTitle.BackgroundTransparency = 1
+	savedTitle.Text = "COORDENADAS GUARDADAS"
+	savedTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+	savedTitle.Font = Enum.Font.GothamBold
+	savedTitle.TextSize = 14
+	savedTitle.Position = UDim2.new(0, 10, 0, 5)
+
+	local savedLabel = Instance.new("TextLabel", savedFrame)
+	savedLabel.Size = UDim2.new(1, -20, 0, 30)
+	savedLabel.Position = UDim2.new(0, 10, 0, 30)
+	savedLabel.BackgroundTransparency = 1
+	savedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	savedLabel.Font = Enum.Font.Gotham
+	savedLabel.TextSize = 13
+	savedLabel.TextXAlignment = Enum.TextXAlignment.Left
+	savedLabel.Text = "X: 0.000\nY: 0.000\nZ: 0.000"
+
+	local saveBtn = Instance.new("TextButton", savedFrame)
+	saveBtn.Size = UDim2.new(1, -20, 0, 30)
+	saveBtn.Position = UDim2.new(0, 10, 0, 62)
+	saveBtn.Text = "GUARDAR COORDENADAS"
+	saveBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	saveBtn.Font = Enum.Font.GothamBold
+	saveBtn.TextSize = 13
+
+	local personalizeBtn = Instance.new("TextButton", savedFrame)
+	personalizeBtn.Size = UDim2.new(1, -20, 0, 28)
+	personalizeBtn.Position = UDim2.new(0, 10, 0, 96)
+	personalizeBtn.Text = "PERSONALIZAR"
+	personalizeBtn.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
+	personalizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	personalizeBtn.Font = Enum.Font.Gotham
+	personalizeBtn.TextSize = 13
+
+	-- Farm
+	local farmFrame = Instance.new("Frame", content)
+	farmFrame.Size = UDim2.new(1, -20, 0, 60)
+	farmFrame.Position = UDim2.new(0, 10, 0, 200)
+	farmFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+	local farmTitle = Instance.new("TextLabel", farmFrame)
+	farmTitle.Size = UDim2.new(1, 0, 0, 25)
+	farmTitle.BackgroundTransparency = 1
+	farmTitle.Text = "AUTO FARM"
+	farmTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+	farmTitle.Font = Enum.Font.GothamBold
+	farmTitle.TextSize = 14
+	farmTitle.Position = UDim2.new(0, 10, 0, 5)
+
+	local farmBtn = Instance.new("TextButton", farmFrame)
+	farmBtn.Size = UDim2.new(1, -20, 0, 30)
+	farmBtn.Position = UDim2.new(0, 10, 0, 30)
+	farmBtn.Text = "AUTO FARM: OFF"
+	farmBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+	farmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	farmBtn.Font = Enum.Font.GothamBold
+	farmBtn.TextSize = 13
+
+	local status = Instance.new("TextLabel", content)
+	status.Size = UDim2.new(1, -20, 0, 25)
+	status.Position = UDim2.new(0, 10, 0, 270)
+	status.BackgroundTransparency = 1
+	status.TextColor3 = Color3.fromRGB(0, 255, 100)
+	status.Font = Enum.Font.Gotham
+	status.TextSize = 14
+	status.Text = "Estado: Idle ⚪"
+
+	-- ==================== PERSONALIZAR ====================
+	local personalizeFrame = Instance.new("Frame", gui)
+	personalizeFrame.Size = UDim2.new(0, 240, 0, 200)
+	personalizeFrame.Position = UDim2.new(0.5, -120, 0.4, 0)
+	personalizeFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	personalizeFrame.BorderSizePixel = 0
+	personalizeFrame.Visible = false
+	personalizeFrame.Active = true
+	personalizeFrame.Draggable = true
+
+	local pStroke = Instance.new("UIStroke", personalizeFrame)
+	pStroke.Color = Color3.fromRGB(200, 0, 0)
+	pStroke.Thickness = 2
+
+	local pTitle = Instance.new("TextLabel", personalizeFrame)
+	pTitle.Size = UDim2.new(1, 0, 0, 30)
+	pTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	pTitle.Text = "PERSONALIZAR COORDENADAS"
+	pTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+	pTitle.Font = Enum.Font.GothamBold
+	pTitle.TextSize = 13
+
+	local function createCoordRow(name, yPos)
+		local frame = Instance.new("Frame", personalizeFrame)
+		frame.Size = UDim2.new(1, -20, 0, 30)
+		frame.Position = UDim2.new(0, 10, 0, yPos)
+		frame.BackgroundTransparency = 1
+		
+		local label = Instance.new("TextLabel", frame)
+		label.Size = UDim2.new(0, 18, 1, 0)
+		label.Text = name
+		label.TextColor3 = Color3.fromRGB(100, 255, 100)
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 13
+		
+		local box = Instance.new("TextBox", frame)
+		box.Size = UDim2.new(0, 100, 1, 0)
+		box.Position = UDim2.new(0, 25, 0, 0)
+		box.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+		box.TextColor3 = Color3.fromRGB(255, 255, 255)
+		box.Text = "0.000"
+		box.Font = Enum.Font.Gotham
+		box.TextSize = 13
+		
+		local plus = Instance.new("TextButton", frame)
+		plus.Size = UDim2.new(0, 28, 1, 0)
+		plus.Position = UDim2.new(0, 135, 0, 0)
+		plus.Text = "+"
+		plus.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		plus.TextColor3 = Color3.fromRGB(0, 255, 100)
+		
+		local minus = Instance.new("TextButton", frame)
+		minus.Size = UDim2.new(0, 28, 1, 0)
+		minus.Position = UDim2.new(0, 168, 0, 0)
+		minus.Text = "-"
+		minus.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		minus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		
+		return box, plus, minus
+	end
+
+	local xBox, xPlus, xMinus = createCoordRow("X", 40)
+	local yBox, yPlus, yMinus = createCoordRow("Y", 75)
+	local zBox, zPlus, zMinus = createCoordRow("Z", 110)
+
+	local applyBtn = Instance.new("TextButton", personalizeFrame)
+	applyBtn.Size = UDim2.new(1, -20, 0, 30)
+	applyBtn.Position = UDim2.new(0, 10, 0, 155)
+	applyBtn.Text = "APLICAR COORDENADAS"
+	applyBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	applyBtn.Font = Enum.Font.GothamBold
+	applyBtn.TextSize = 13
+
+	-- ==================== MENÚ CONSEJOS ====================
+	local tipsFrame = Instance.new("Frame", gui)
+	tipsFrame.Size = UDim2.new(0, 280, 0, 360)
+	tipsFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
+	tipsFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+	tipsFrame.BorderSizePixel = 0
+	tipsFrame.Visible = false
+	tipsFrame.Active = true
+	tipsFrame.Draggable = true
+
+	local tipsStroke = Instance.new("UIStroke", tipsFrame)
+	tipsStroke.Color = Color3.fromRGB(200, 0, 0)
+	tipsStroke.Thickness = 2
+
+	local tipsTitle = Instance.new("TextLabel", tipsFrame)
+	tipsTitle.Size = UDim2.new(1, 0, 0, 35)
+	tipsTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	tipsTitle.Text = "Consejos Mejorar Script"
+	tipsTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+	tipsTitle.Font = Enum.Font.GothamBold
+	tipsTitle.TextSize = 15
+
+	local scroll = Instance.new("ScrollingFrame", tipsFrame)
+	scroll.Size = UDim2.new(1, -20, 0, 230)
+	scroll.Position = UDim2.new(0, 10, 0, 40)
+	scroll.BackgroundTransparency = 1
+	scroll.ScrollBarThickness = 6
+
+	local uiList = Instance.new("UIListLayout", scroll)
+	uiList.SortOrder = Enum.SortOrder.LayoutOrder
+	uiList.Padding = UDim.new(0, 6)
+
+	local inputBox = Instance.new("TextBox", tipsFrame)
+	inputBox.Size = UDim2.new(1, -20, 0, 50)
+	inputBox.Position = UDim2.new(0, 10, 1, -110)
+	inputBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	inputBox.PlaceholderText = "Escribe tu consejo aquí..."
+	inputBox.TextColor3 = Color3.fromRGB(255,255,255)
+	inputBox.TextWrapped = true
+	inputBox.ClearTextOnFocus = false
+	inputBox.Font = Enum.Font.Gotham
+	inputBox.TextSize = 14
+
+	local sendBtn = Instance.new("TextButton", tipsFrame)
+	sendBtn.Size = UDim2.new(1, -20, 0, 35)
+	sendBtn.Position = UDim2.new(0, 10, 1, -55)
+	sendBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	sendBtn.Text = "ENVIAR CONSEJO"
+	sendBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	sendBtn.Font = Enum.Font.GothamBold
+	sendBtn.TextSize = 13
+
+	-- ==================== LÓGICA ====================
+
+	tipsBtn.MouseButton1Click:Connect(function()
+		tipsFrame.Visible = not tipsFrame.Visible
+	end)
+
+	sendBtn.MouseButton1Click:Connect(function()
+		if inputBox.Text == "" then return end
+		
+		local entry = Instance.new("Frame")
+		entry.Size = UDim2.new(1, 0, 0, 70)
+		entry.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+		
+		local name = Instance.new("TextLabel", entry)
+		name.Size = UDim2.new(1, -10, 0, 18)
+		name.Position = UDim2.new(0, 5, 0, 5)
+		name.BackgroundTransparency = 1
+		name.Text = player.Name
+		name.TextColor3 = Color3.fromRGB(100, 200, 255)
+		name.Font = Enum.Font.GothamBold
+		name.TextSize = 12
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		
+		local msg = Instance.new("TextLabel", entry)
+		msg.Size = UDim2.new(1, -10, 0, 45)
+		msg.Position = UDim2.new(0, 5, 0, 23)
+		msg.BackgroundTransparency = 1
+		msg.Text = inputBox.Text
+		msg.TextColor3 = Color3.fromRGB(255, 255, 255)
+		msg.Font = Enum.Font.Gotham
+		msg.TextSize = 12
+		msg.TextWrapped = true
+		msg.TextXAlignment = Enum.TextXAlignment.Left
+		
+		entry.Parent = scroll
+		scroll.CanvasSize = UDim2.new(0,0,0, uiList.AbsoluteContentSize.Y)
+		
+		inputBox.Text = ""
+		status.Text = "✅ Consejo enviado"
+		task.delay(2, function() status.Text = "Estado: Idle ⚪" end)
+	end)
+
+	personalizeBtn.MouseButton1Click:Connect(function()
+		if savedCoords then
+			tempX, tempY, tempZ = savedCoords.X, savedCoords.Y, savedCoords.Z
+			xBox.Text = string.format("%.3f", tempX)
+			yBox.Text = string.format("%.3f", tempY)
+			zBox.Text = string.format("%.3f", tempZ)
+		end
+		personalizeFrame.Visible = true
+	end)
+
+	local function updateTemp(coord, delta)
+		if coord == "X" then tempX = tempX + delta; xBox.Text = string.format("%.3f", tempX)
+		elseif coord == "Y" then tempY = tempY + delta; yBox.Text = string.format("%.3f", tempY)
+		else tempZ = tempZ + delta; zBox.Text = string.format("%.3f", tempZ) end
+	end
+
+	xPlus.MouseButton1Click:Connect(function() updateTemp("X", 0.5) end)
+	xMinus.MouseButton1Click:Connect(function() updateTemp("X", -0.5) end)
+	yPlus.MouseButton1Click:Connect(function() updateTemp("Y", 0.5) end)
+	yMinus.MouseButton1Click:Connect(function() updateTemp("Y", -0.5) end)
+	zPlus.MouseButton1Click:Connect(function() updateTemp("Z", 0.5) end)
+	zMinus.MouseButton1Click:Connect(function() updateTemp("Z", -0.5) end)
+
+	applyBtn.MouseButton1Click:Connect(function()
+		savedCoords = Vector3.new(tempX, tempY, tempZ)
+		savedLabel.Text = string.format("X: %.3f\nY: %.3f\nZ: %.3f", tempX, tempY, tempZ)
+		personalizeFrame.Visible = false
+		status.Text = "Coordenadas Aplicadas ✓"
+		task.delay(1.5, function() if not farming then status.Text = "Estado: Idle ⚪" end end)
+	end)
+
+	minimizeBtn.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		if minimized then
+			content.Visible = false
+			main.Size = UDim2.new(0, 260, 0, 40)
+			minimizeBtn.Text = "▲"
+		else
+			content.Visible = true
+			main.Size = UDim2.new(0, 260, 0, 360)
+			minimizeBtn.Text = "▼"
+		end
+	end)
+
+	saveBtn.MouseButton1Click:Connect(function()
+		if root then
+			savedCoords = root.Position
+			savedLabel.Text = string.format("X: %.3f\nY: %.3f\nZ: %.3f", savedCoords.X, savedCoords.Y, savedCoords.Z)
+			status.Text = "Posición Guardada ✓"
+			task.delay(1.5, function() if not farming then status.Text = "Estado: Idle ⚪" end end)
+		end
+	end)
+
+	farmBtn.MouseButton1Click:Connect(function()
+		farming = not farming
+		if farming then
+			farmBtn.Text = "AUTO FARM: ON"
+			farmBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+			status.Text = "Estado: Farming 🟢"
+			task.spawn(function()
+				while farming do
+					task.wait(0.15)
+					if root and savedCoords then
+						char:PivotTo(CFrame.new(savedCoords + Vector3.new(0, 3, 0)))
+					end
+				end
+			end)
+		else
+			farmBtn.Text = "AUTO FARM: OFF"
+			farmBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+			status.Text = "Estado: Idle ⚪"
+		end
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		if root then
+			local p = root.Position
+			live.Text = string.format("X: %.3f\nY: %.3f\nZ: %.3f", p.X, p.Y, p.Z)
+		end
+	end)
+
+	-- Credit
+	local credit = Instance.new("TextLabel", main)
+	credit.Size = UDim2.new(1, 0, 0, 25)
+	credit.Position = UDim2.new(0, 0, 1, -25)
+	credit.BackgroundTransparency = 1
+	credit.Text = "By Sebax"
+	credit.TextColor3 = Color3.fromRGB(200, 0, 0)
+	credit.Font = Enum.Font.GothamBold
+	credit.TextSize = 16
+
+	print("✅ AUTO FARM V4.0 cargado correctamente")
+end
+
+-- ==================== SISTEMA DE CONTRASEÑA HACKER ====================
+if player.UserId == ownerId then
+	showMainGUI()
+else
+	local loginGui = Instance.new("ScreenGui")
+	loginGui.Name = "LoginHacker"
+	loginGui.ResetOnSpawn = false
+	loginGui.Parent = game.CoreGui
+
+	local loginFrame = Instance.new("Frame", loginGui)
+	loginFrame.Size = UDim2.new(0, 300, 0, 200)
+	loginFrame.Position = UDim2.new(0.5, -150, 0.4, -100)
+	loginFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	loginFrame.BorderSizePixel = 0
+	loginFrame.Active = true
+	loginFrame.Draggable = true
+
+	local loginStroke = Instance.new("UIStroke", loginFrame)
+	loginStroke.Color = Color3.fromRGB(0, 255, 0)
+	loginStroke.Thickness = 3
+
+	local title = Instance.new("TextLabel", loginFrame)
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.BackgroundColor3 = Color3.fromRGB(0, 20, 0)
+	title.Text = "ACCESO RESTRINGIDO"
+	title.TextColor3 = Color3.fromRGB(0, 255, 0)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 20
+
+	local sub = Instance.new("TextLabel", loginFrame)
+	sub.Size = UDim2.new(1, -20, 0, 30)
+	sub.Position = UDim2.new(0, 10, 0, 50)
+	sub.BackgroundTransparency = 1
+	sub.Text = "Introduce la clave de administrador"
+	sub.TextColor3 = Color3.fromRGB(0, 200, 0)
+	sub.Font = Enum.Font.Gotham
+	sub.TextSize = 14
+
+	local pwdBox = Instance.new("TextBox", loginFrame)
+	pwdBox.Size = UDim2.new(1, -40, 0, 40)
+	pwdBox.Position = UDim2.new(0, 20, 0, 90)
+	pwdBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	pwdBox.TextColor3 = Color3.fromRGB(0, 255, 0)
+	pwdBox.PlaceholderText = "············"
+	pwdBox.PlaceholderColor3 = Color3.fromRGB(0, 100, 0)
+	pwdBox.Font = Enum.Font.GothamBold
+	pwdBox.TextSize = 18
+	pwdBox.ClearTextOnFocus = false
+
+	local enterBtn = Instance.new("TextButton", loginFrame)
+	enterBtn.Size = UDim2.new(0, 120, 0, 35)
+	enterBtn.Position = UDim2.new(0.5, -60, 0, 145)
+	enterBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+	enterBtn.Text = "ACCEDER"
+	enterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	enterBtn.Font = Enum.Font.GothamBold
+	enterBtn.TextSize = 16
+
+	local errorLabel = Instance.new("TextLabel", loginFrame)
+	errorLabel.Size = UDim2.new(1, -20, 0, 20)
+	errorLabel.Position = UDim2.new(0, 10, 0, 185)
+	errorLabel.BackgroundTransparency = 1
+	errorLabel.Text = ""
+	errorLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+	errorLabel.Font = Enum.Font.Gotham
+	errorLabel.TextSize = 12
+
+	local decor = Instance.new("TextLabel", loginFrame)
+	decor.Size = UDim2.new(1, 0, 0, 15)
+	decor.Position = UDim2.new(0, 0, 0, 205)
+	decor.BackgroundTransparency = 1
+	decor.Text = "> SYSTEM: awaiting credentials..."
+	decor.TextColor3 = Color3.fromRGB(0, 150, 0)
+	decor.Font = Enum.Font.Code
+	decor.TextSize = 12
+	decor.TextXAlignment = Enum.TextXAlignment.Left
+
+	enterBtn.MouseButton1Click:Connect(function()
+		if pwdBox.Text == "ADMINS" then
+			loginGui:Destroy()
+			showMainGUI()
+		else
+			errorLabel.Text = "❌ CLAVE INCORRECTA"
+			pwdBox.Text = ""
+			task.delay(2, function() errorLabel.Text = "" end)
+		end
+	end)
+
+	pwdBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			if pwdBox.Text == "ADMINS" then
+				loginGui:Destroy()
+				showMainGUI()
+			else
+				errorLabel.Text = "❌ CLAVE INCORRECTA"
+				pwdBox.Text = ""
+				task.delay(2, function() errorLabel.Text = "" end)
+			end
+		end
+	end)
+end
